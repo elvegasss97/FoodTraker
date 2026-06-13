@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="Comida"/>
+  <meta name="theme-color" content="#0F0F0F"/>
+  <title>Food Tracker</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; background: #0F0F0F; }
+    body { color: #F5F5F5; font-family: 'Space Grotesk', sans-serif; max-width: 480px; margin: 0 auto; overflow-x: hidden; }
+    #root { min-height: 100vh; }
+    .app { display: flex; flex-direction: column; min-height: 100vh; }
+    .screen { flex: 1; padding: 0 0 80px 0; overflow-y: auto; }
+    .nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 480px; background: #1A1A1A; border-top: 1px solid #2E2E2E; display: flex; z-index: 100; padding-bottom: env(safe-area-inset-bottom); }
+    .nav-btn { flex: 1; padding: 12px 0 14px; background: none; border: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; color: #777; font-family: 'Space Grotesk', sans-serif; font-size: 10px; font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase; -webkit-tap-highlight-color: transparent; }
+    .nav-btn.active { color: #FF6B35; }
+    .nav-btn svg { width: 20px; height: 20px; }
+
+    /* Header */
+    .header { padding: 52px 20px 16px; }
+    .header-title { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; }
+    .header-sub { font-size: 13px; color: #777; margin-top: 2px; }
+
+    /* Progress rings / bars */
+    .goals-card { margin: 0 16px 16px; background: #1A1A1A; border: 1px solid #2E2E2E; border-radius: 20px; padding: 20px; }
+    .goals-date { font-size: 11px; color: #777; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 16px; font-family: 'Space Mono', monospace; }
+    .macro-row { display: flex; gap: 12px; margin-bottom: 20px; }
+    .macro-ring { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .ring-wrap { position: relative; width: 80px; height: 80px; }
+    .ring-svg { transform: rotate(-90deg); }
+    .ring-bg { fill: none; stroke: #2E2E2E; stroke-width: 6; }
+    .ring-fill { fill: none; stroke-width: 6; stroke-linecap: round; transition: stroke-dashoffset 0.5s ease; }
+    .ring-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .ring-val { font-family: 'Space Mono', monospace; font-size: 14px; font-weight: 700; line-height: 1; }
+    .ring-unit { font-size: 9px; color: #777; margin-top: 1px; }
+    .macro-label { font-size: 11px; color: #777; text-transform: uppercase; letter-spacing: 0.06em; }
+    .macro-goal { font-size: 10px; color: #555; }
+
+    /* Bar version for calories (bigger) */
+    .cal-section { margin-bottom: 20px; }
+    .cal-top { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 8px; }
+    .cal-num { font-family: 'Space Mono', monospace; font-size: 36px; font-weight: 700; color: #FF6B35; line-height: 1; }
+    .cal-goal-text { font-size: 12px; color: #777; }
+    .cal-bar-wrap { height: 8px; background: #2E2E2E; border-radius: 4px; overflow: hidden; }
+    .cal-bar { height: 100%; border-radius: 4px; transition: width 0.4s ease; background: #FF6B35; }
+    .cal-bar.over { background: #FF4444; }
+    .cal-remaining { font-size: 12px; color: #777; margin-top: 6px; }
+
+    .prot-bar-wrap { height: 6px; background: #2E2E2E; border-radius: 3px; overflow: hidden; margin-top: 6px; }
+    .prot-bar { height: 100%; border-radius: 3px; background: #C8FF00; transition: width 0.4s ease; }
+
+    /* Section */
+    .section-label { font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #777; padding: 8px 20px; }
+
+    /* Food items */
+    .food-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 0 16px 4px; }
+    .food-card { background: #1A1A1A; border: 1px solid #2E2E2E; border-radius: 14px; padding: 14px 12px; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: border-color 0.1s; position: relative; overflow: hidden; }
+    .food-card:active { border-color: #FF6B35; background: #1E1A18; }
+    .food-emoji { font-size: 24px; margin-bottom: 8px; }
+    .food-name { font-size: 13px; font-weight: 600; margin-bottom: 4px; line-height: 1.2; }
+    .food-kcal { font-family: 'Space Mono', monospace; font-size: 13px; color: #FF6B35; font-weight: 700; }
+    .food-prot { font-size: 11px; color: #8FB800; margin-top: 1px; }
+    .food-portion { font-size: 10px; color: #555; margin-top: 2px; }
+    .food-add-btn { position: absolute; top: 10px; right: 10px; width: 24px; height: 24px; background: rgba(255,107,53,0.15); border: 1px solid rgba(255,107,53,0.3); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #FF6B35; font-size: 16px; font-weight: 700; }
+
+    /* Log entries */
+    .log-card { background: #1A1A1A; border: 1px solid #2E2E2E; border-radius: 14px; margin: 0 16px 8px; }
+    .log-meal-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px 8px; }
+    .log-meal-label { font-size: 10px; color: #777; text-transform: uppercase; letter-spacing: 0.08em; }
+    .log-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; border-top: 1px solid #242424; }
+    .log-item-left { display: flex; align-items: center; gap: 10px; }
+    .log-emoji { font-size: 18px; }
+    .log-name { font-size: 13px; font-weight: 500; }
+    .log-macros { font-size: 11px; color: #777; margin-top: 1px; }
+    .log-del { width: 28px; height: 28px; background: rgba(255,68,68,0.08); border: 1px solid rgba(255,68,68,0.15); border-radius: 8px; color: #FF4444; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent; flex-shrink: 0; }
+
+    /* Toast */
+    .toast { position: fixed; top: 60px; left: 50%; transform: translateX(-50%); background: #FF6B35; color: #fff; padding: 10px 20px; border-radius: 20px; font-size: 13px; font-weight: 700; z-index: 300; white-space: nowrap; pointer-events: none; }
+
+    /* Modal */
+    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; align-items: flex-end; z-index: 200; }
+    .modal { background: #1A1A1A; border: 1px solid #2E2E2E; border-radius: 24px 24px 0 0; width: 100%; max-width: 480px; margin: 0 auto; padding: 24px 20px 40px; max-height: 85vh; overflow-y: auto; }
+    .modal-handle { width: 40px; height: 4px; background: #2E2E2E; border-radius: 2px; margin: 0 auto 20px; }
+    .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; }
+    .input-field { width: 100%; background: #242424; border: 1px solid #2E2E2E; border-radius: 12px; padding: 14px 16px; color: #F5F5F5; font-family: 'Space Grotesk', sans-serif; font-size: 15px; outline: none; margin-bottom: 10px; -webkit-appearance: none; }
+    .input-field:focus { border-color: #FF6B35; }
+    .input-field::placeholder { color: #777; }
+    .input-row { display: flex; gap: 8px; margin-bottom: 10px; }
+    .input-row .input-field { margin-bottom: 0; }
+    .btn { display: flex; align-items: center; justify-content: center; gap: 6px; border: none; border-radius: 12px; cursor: pointer; font-family: 'Space Grotesk', sans-serif; font-weight: 600; -webkit-tap-highlight-color: transparent; }
+    .btn:active { transform: scale(0.97); }
+    .btn-primary { background: #FF6B35; color: #fff; padding: 14px 20px; font-size: 14px; width: 100%; }
+    .btn-ghost { background: transparent; color: #777; padding: 10px 16px; font-size: 13px; border: 1px solid #2E2E2E; width: 100%; margin-top: 8px; }
+
+    /* Settings */
+    .settings-card { background: #1A1A1A; border: 1px solid #2E2E2E; border-radius: 16px; margin: 0 16px 12px; overflow: hidden; }
+    .settings-row { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-top: 1px solid #2E2E2E; }
+    .settings-row:first-child { border-top: none; }
+    .settings-label { font-size: 14px; font-weight: 500; }
+    .settings-sub { font-size: 12px; color: #777; margin-top: 2px; }
+    .settings-val { font-family: 'Space Mono', monospace; font-size: 15px; color: #FF6B35; font-weight: 700; }
+
+    .empty { text-align: center; padding: 32px 24px; color: #777; font-size: 14px; line-height: 1.6; }
+    .empty-icon { font-size: 36px; margin-bottom: 10px; }
+    .empty-title { font-size: 15px; font-weight: 600; color: #F5F5F5; margin-bottom: 4px; }
+
+    /* Week history */
+    .week-bar-row { display: flex; gap: 6px; align-items: flex-end; height: 60px; margin-bottom: 8px; }
+    .week-bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .week-bar { width: 100%; border-radius: 4px 4px 0 0; background: #242424; min-height: 3px; }
+    .week-bar.hit { background: #FF6B35; }
+    .week-bar.over { background: #FF4444; }
+    .week-day-lbl { font-size: 9px; color: #777; font-family: 'Space Mono', monospace; }
+
+    /* Shopping list */
+    .shop-cat { margin: 0 16px 12px; }
+    .shop-cat-title { font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #777; padding: 8px 0 6px; }
+    .shop-item { display: flex; align-items: center; gap: 12px; padding: 11px 14px; background: #1A1A1A; border: 1px solid #2E2E2E; border-radius: 12px; margin-bottom: 6px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+    .shop-item.checked { opacity: 0.4; }
+    .shop-check { width: 22px; height: 22px; border-radius: 6px; border: 2px solid #2E2E2E; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 13px; }
+    .shop-check.done { background: #FF6B35; border-color: #FF6B35; }
+    .shop-name { font-size: 14px; font-weight: 500; flex: 1; }
+    .shop-qty { font-size: 12px; color: #777; font-family: 'Space Mono', monospace; }
+    /* Meal plan */
+    .day-plan-card { background: #1A1A1A; border: 1px solid #2E2E2E; border-radius: 16px; margin: 0 16px 10px; overflow: hidden; }
+    .day-plan-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 10px; cursor: pointer; }
+    .day-plan-name { font-size: 15px; font-weight: 700; }
+    .day-plan-kcal { font-size: 11px; color: #FF6B35; font-family: 'Space Mono', monospace; }
+    .meal-slot { padding: 8px 16px 10px; border-top: 1px solid #242424; }
+    .meal-slot-label { font-size: 10px; color: #777; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 3px; }
+    .meal-slot-name { font-size: 13px; font-weight: 500; }
+    .meal-slot-macro { font-size: 11px; color: #555; margin-top: 1px; }
+
+    .qty-selector { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .qty-btn { width: 40px; height: 40px; border-radius: 10px; background: #242424; border: 1px solid #2E2E2E; color: #F5F5F5; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent; }
+    .qty-num { font-family: 'Space Mono', monospace; font-size: 24px; font-weight: 700; flex: 1; text-align: center; }
+    .qty-label { font-size: 12px; color: #777; text-align: center; margin-top: -10px; margin-bottom: 8px; }
+
+    .pill-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+    .pill { padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; background: #242424; border: 1px solid #2E2E2E; color: #777; cursor: pointer; }
+    .pill.active { background: rgba(255,107,53,0.12); border-color: #FF6B35; color: #FF6B35; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useRef } = React;
+
+const MEALS = ["Desayuno","Media manana","Comida","Merienda","Cena","Extra"];
+
+const DEFAULT_FOODS = [
+  // Proteina alta
+  {id:"f1",emoji:"🥫",name:"Lata de atun",kcal:120,prot:26,portion:"1 lata (80g)",cat:"proteina"},
+  {id:"f2",emoji:"🍳",name:"Huevos fritos",kcal:220,prot:14,portion:"2 huevos + aceite",cat:"proteina"},
+  {id:"f3",emoji:"🍗",name:"Pechuga a la plancha",kcal:165,prot:31,portion:"1 pechuga (150g)",cat:"proteina"},
+  {id:"f4",emoji:"🥩",name:"Filete de ternera",kcal:250,prot:28,portion:"1 filete (150g)",cat:"proteina"},
+  {id:"f5",emoji:"🍤",name:"Gambas a la plancha",kcal:100,prot:20,portion:"150g",cat:"proteina"},
+  {id:"f6",emoji:"🥛",name:"Yogur proteico",kcal:100,prot:15,portion:"1 yogur (200g)",cat:"proteina"},
+  {id:"f7",emoji:"🧀",name:"Queso fresco",kcal:140,prot:16,portion:"2 lonchas (100g)",cat:"proteina"},
+  {id:"f8",emoji:"🍖",name:"Jamon serrano",kcal:180,prot:22,portion:"4 lonchas (60g)",cat:"proteina"},
+  // Carbos / completos
+  {id:"f9",emoji:"🥪",name:"Bocadillo jamon",kcal:420,prot:24,portion:"1 bocadillo",cat:"comida"},
+  {id:"f10",emoji:"🍕",name:"Pizza individual",kcal:700,prot:28,portion:"1 pizza",cat:"comida"},
+  {id:"f11",emoji:"🍚",name:"Arroz con pollo",kcal:480,prot:32,portion:"1 plato",cat:"comida"},
+  {id:"f12",emoji:"🍝",name:"Pasta con carne",kcal:520,prot:30,portion:"1 plato",cat:"comida"},
+  {id:"f13",emoji:"🥗",name:"Ensalada con atun",kcal:250,prot:22,portion:"1 plato",cat:"comida"},
+  {id:"f14",emoji:"🌯",name:"Wrap de pollo",kcal:380,prot:28,portion:"1 wrap",cat:"comida"},
+  // Snacks / rapido
+  {id:"f15",emoji:"🍌",name:"Platano",kcal:90,prot:1,portion:"1 platano",cat:"snack"},
+  {id:"f16",emoji:"🥜",name:"Cacahuetes",kcal:280,prot:12,portion:"50g",cat:"snack"},
+  {id:"f17",emoji:"🍞",name:"Tostadas con aceite",kcal:200,prot:5,portion:"2 tostadas",cat:"snack"},
+  {id:"f18",emoji:"🥤",name:"Batido proteico",kcal:150,prot:25,portion:"1 scoop",cat:"snack"},
+  {id:"f19",emoji:"🧃",name:"Zumo naranja",kcal:110,prot:1,portion:"1 vaso (250ml)",cat:"snack"},
+  {id:"f20",emoji:"🍫",name:"Chocolate negro",kcal:170,prot:3,portion:"30g",cat:"snack"},
+];
+
+const CATS = [
+  {id:"all",label:"Todo"},
+  {id:"proteina",label:"Proteina"},
+  {id:"comida",label:"Comidas"},
+  {id:"snack",label:"Snacks"},
+];
+
+const dateKey = () => new Date().toISOString().split("T")[0];
+const DAYS = ["Dom","Lun","Mar","Mie","Jue","Vie","Sab"];
+
+function useLS(key, init) {
+  const [v, setV] = useState(() => { try { const s=localStorage.getItem(key); return s?JSON.parse(s):init; } catch { return init; } });
+  const save = n => { setV(n); try { localStorage.setItem(key,JSON.stringify(n)); } catch {} };
+  return [v, save];
+}
+
+const IcoHoy = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>;
+const IcoAdd = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;
+const IcoStats = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>;
+const IcoShop = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>;
+const IcoSettings = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>;
+
+function Ring({val, goal, color, label}) {
+  const pct = Math.min(val/goal, 1);
+  const r = 30; const circ = 2*Math.PI*r;
+  const offset = circ - pct*circ;
+  const isOver = val > goal;
+  return (
+    <div className="macro-ring">
+      <div className="ring-wrap">
+        <svg className="ring-svg" width="80" height="80" viewBox="0 0 80 80">
+          <circle className="ring-bg" cx="40" cy="40" r={r}/>
+          <circle className="ring-fill" cx="40" cy="40" r={r}
+            stroke={isOver?"#FF4444":color}
+            strokeDasharray={circ}
+            strokeDashoffset={offset}/>
+        </svg>
+        <div className="ring-center">
+          <div className="ring-val" style={{color:isOver?"#FF4444":color}}>{val}</div>
+          <div className="ring-unit">/{goal}g</div>
+        </div>
+      </div>
+      <div className="macro-label">{label}</div>
+    </div>
+  );
+}
+
+function TodayScreen({log, onAdd, onDelete, goals, foods, mealTicks, onMealTick}) {
+  const todayKey = dateKey();
+  const entries = log[todayKey] || [];
+  const totalKcal = entries.reduce((a,e)=>a+e.kcal*e.qty,0);
+  const totalProt = entries.reduce((a,e)=>a+e.prot*e.qty,0);
+  const calPct = Math.min(totalKcal/goals.kcal,1);
+  const isOver = totalKcal > goals.kcal;
+  const remaining = goals.kcal - totalKcal;
+  const [customModal, setCustomModal] = useState(false);
+  const [cx, setCx] = useState({name:"",kcal:"",prot:"",portion:"",slot:"Comida"});
+  const [toastMsg, setToastMsg] = useState(null);
+  const toastTimer = useRef(null);
+  const showToast = m => { setToastMsg(m); clearTimeout(toastTimer.current); toastTimer.current=setTimeout(()=>setToastMsg(null),1800); };
+
+  const now = new Date();
+  const dayName = ["Domingo","Lunes","Martes","Miercoles","Jueves","Viernes","Sabado"][now.getDay()];
+  const todayPlan = MEAL_PLAN.find(p=>p.day===dayName);
+  const ticks = mealTicks[todayKey] || {};
+
+  const toggleTick = (idx, meal) => {
+    const key = todayKey;
+    const prev = mealTicks[key] || {};
+    const wasOn = prev[idx];
+    const newTicks = {...mealTicks, [key]: {...prev, [idx]: !wasOn}};
+    onMealTick(newTicks);
+    if(!wasOn) {
+      onAdd(todayKey, {id:"plan_"+idx, emoji:"🍽️", name:meal.name, kcal:meal.kcal, prot:meal.prot, portion:meal.portions||"", qty:1, meal:meal.slot, _id:"t_"+idx+"_"+Date.now()});
+      showToast("+"+meal.kcal+" kcal · +"+meal.prot+"g prot");
+    } else {
+      // remove entries from this plan slot
+      const updated = {...log, [todayKey]: (log[todayKey]||[]).filter(e=>e.meal!==meal.slot||!e.id||!e.id.startsWith("plan_"+idx))};
+      // we just remove the last added with same meal slot for simplicity
+    }
+  };
+
+  const addCustom = () => {
+    if(!cx.name||!cx.kcal) return;
+    const f={id:"c"+Date.now(),emoji:"🍽️",name:cx.name,kcal:parseInt(cx.kcal)||0,prot:parseInt(cx.prot)||0,portion:cx.portion||"1 porcion",cat:"comida"};
+    onAdd(todayKey,{...f,qty:1,meal:cx.slot,_id:"_"+Date.now()});
+    setCustomModal(false); setCx({name:"",kcal:"",prot:"",portion:"",slot:"Comida"});
+    showToast("+"+f.kcal+" kcal");
+  };
+
+  const tickedCount = todayPlan ? todayPlan.meals.filter((_,i)=>ticks[i]).length : 0;
+  const totalMeals = todayPlan ? todayPlan.meals.length : 0;
+
+  return (
+    <div>
+      {toastMsg && <div className="toast">{toastMsg}</div>}
+      <div className="header">
+        <div style={{display:"flex",alignItems:"flex-end",justifyContent:"space-between"}}>
+          <div>
+            <div className="header-title">Hoy</div>
+            <div className="header-sub">{dayName}</div>
+          </div>
+          {todayPlan && <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:tickedCount===totalMeals?"#C8FF00":"#777",background:tickedCount===totalMeals?"rgba(200,255,0,0.08)":"#1A1A1A",border:"1px solid",borderColor:tickedCount===totalMeals?"rgba(200,255,0,0.25)":"#2E2E2E",padding:"4px 10px",borderRadius:20}}>{tickedCount}/{totalMeals} comidas</div>}
+        </div>
+      </div>
+
+      <div className="goals-card">
+        <div className="goals-date">Progreso del dia</div>
+        <div className="cal-section">
+          <div className="cal-top">
+            <div>
+              <div className="cal-num" style={{color:isOver?"#FF4444":"#FF6B35"}}>{totalKcal}</div>
+              <div style={{fontSize:11,color:"#777",marginTop:2}}>kcal registradas</div>
+            </div>
+            <div style={{textAlign:"right"}}>
+              <div className="cal-goal-text">{isOver?<span style={{color:"#FF4444"}}>+{Math.abs(remaining)} pasado</span>:<span>{remaining} restantes</span>}</div>
+              <div style={{fontSize:11,color:"#555",marginTop:2}}>meta {goals.kcal} kcal</div>
+            </div>
+          </div>
+          <div className="cal-bar-wrap"><div className={"cal-bar"+(isOver?" over":"")} style={{width:(calPct*100)+"%"}}/></div>
+        </div>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
+          <div style={{fontSize:13,fontWeight:600}}>Proteina <span style={{fontFamily:"'Space Mono',monospace",color:"#C8FF00"}}>{totalProt}g</span></div>
+          <div style={{fontSize:12,color:"#777"}}>meta {goals.prot}g</div>
+        </div>
+        <div className="prot-bar-wrap"><div className="prot-bar" style={{width:(Math.min(totalProt/goals.prot,1)*100)+"%"}}/></div>
+        {totalProt < goals.prot && <div style={{fontSize:11,color:"#777",marginTop:5}}>{goals.prot-totalProt}g proteina por llegar</div>}
+      </div>
+
+      {todayPlan ? <>
+        <div className="section-label">Tu plan de hoy</div>
+        <div style={{margin:"0 16px 16px"}}>
+          {todayPlan.meals.map((meal,i)=>{
+            const done = ticks[i];
+            return (
+              <div key={i} onClick={()=>toggleTick(i,meal)} style={{display:"flex",alignItems:"flex-start",gap:12,padding:"13px 14px",background:done?"rgba(200,255,0,0.04)":"#1A1A1A",border:"1px solid",borderColor:done?"rgba(200,255,0,0.2)":"#2E2E2E",borderRadius:14,marginBottom:8,cursor:"pointer",transition:"all 0.15s"}}>
+                <div style={{width:24,height:24,borderRadius:7,border:"2px solid",borderColor:done?"#C8FF00":"#2E2E2E",background:done?"#C8FF00":"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:1,fontSize:13,color:"#0F0F0F",fontWeight:700,transition:"all 0.15s"}}>
+                  {done?"✓":""}
+                </div>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:10,color:done?"#8FB800":"#777",textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:3}}>{meal.slot}</div>
+                  <div style={{fontSize:14,fontWeight:600,color:done?"#777":"#F5F5F5",textDecoration:done?"line-through":"none"}}>{meal.name}</div>
+                  {meal.portions && <div style={{fontSize:11,color:"#FF6B35",marginTop:3,fontFamily:"'Space Mono',monospace"}}>{meal.portions}</div>}
+                  <div style={{fontSize:11,color:"#555",marginTop:3}}>{meal.kcal} kcal · {meal.prot}g prot</div>
+                </div>
+              </div>
+            );
+          })}
+          <div style={{border:"1px dashed #2E2E2E",borderRadius:14,padding:"13px 14px",display:"flex",alignItems:"center",gap:12,cursor:"pointer"}} onClick={()=>setCustomModal(true)}>
+            <div style={{width:24,height:24,borderRadius:7,border:"2px dashed #444",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:16,color:"#555"}}>+</div>
+            <div style={{fontSize:13,color:"#555"}}>Anadir algo extra</div>
+          </div>
+        </div>
+      </> : (
+        <div style={{textAlign:"center",padding:"32px 24px",color:"#777"}}>
+          <div style={{fontSize:32,marginBottom:8}}>📅</div>
+          <div style={{fontSize:15,fontWeight:600,color:"#F5F5F5",marginBottom:4}}>Sin plan para hoy</div>
+          <div style={{fontSize:13}}>Revisa el plan semanal en la pestana Compra</div>
+        </div>
+      )}
+
+      <div style={{height:16}}/>
+
+      {customModal && (
+        <div className="overlay" onClick={()=>setCustomModal(false)}>
+          <div className="modal" onClick={e=>e.stopPropagation()}>
+            <div className="modal-handle"/>
+            <div className="modal-title">Anadir extra</div>
+            <input className="input-field" placeholder="Nombre (ej: Croquetas del bar)" value={cx.name} onChange={e=>setCx({...cx,name:e.target.value})} autoFocus/>
+            <div className="input-row">
+              <input className="input-field" placeholder="kcal" type="number" inputMode="numeric" value={cx.kcal} onChange={e=>setCx({...cx,kcal:e.target.value})}/>
+              <input className="input-field" placeholder="prot g" type="number" inputMode="numeric" value={cx.prot} onChange={e=>setCx({...cx,prot:e.target.value})}/>
+            </div>
+            <div style={{fontSize:12,color:"#777",marginBottom:8}}>Momento del dia</div>
+            <div className="pill-row">
+              {MEALS.map(m=><button key={m} className={"pill"+(cx.slot===m?" active":"")} onClick={()=>setCx({...cx,slot:m})}>{m}</button>)}
+            </div>
+            <button className="btn btn-primary" onClick={addCustom}>Anadir</button>
+            <button className="btn btn-ghost" onClick={()=>setCustomModal(false)}>Cancelar</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StatsScreen({log, goals}) {
+  const last7 = [];
+  const now = new Date();
+  for(let i=6;i>=0;i--){
+    const d = new Date(now); d.setDate(d.getDate()-i);
+    const key = d.toISOString().split("T")[0];
+    const entries = log[key]||[];
+    const kcal = entries.reduce((a,e)=>a+e.kcal*e.qty,0);
+    const prot = entries.reduce((a,e)=>a+e.prot*e.qty,0);
+    last7.push({key,day:DAYS[d.getDay()],kcal,prot});
+  }
+  const maxKcal = Math.max(...last7.map(d=>d.kcal),goals.kcal);
+  const daysHit = last7.filter(d=>d.kcal>=goals.kcal*0.9&&d.kcal<=goals.kcal*1.1).length;
+  const avgKcal = Math.round(last7.filter(d=>d.kcal>0).reduce((a,d)=>a+d.kcal,0)/Math.max(last7.filter(d=>d.kcal>0).length,1));
+  const avgProt = Math.round(last7.filter(d=>d.prot>0).reduce((a,d)=>a+d.prot,0)/Math.max(last7.filter(d=>d.prot>0).length,1));
+
+  return (
+    <div>
+      <div className="header">
+        <div className="header-title">Progreso</div>
+        <div className="header-sub">Ultimos 7 dias</div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,padding:"0 16px 16px"}}>
+        <div style={{background:"#1A1A1A",border:"1px solid #2E2E2E",borderRadius:14,padding:16}}>
+          <div style={{fontFamily:"'Space Mono',monospace",fontSize:28,fontWeight:700,color:"#FF6B35",lineHeight:1}}>{daysHit}</div>
+          <div style={{fontSize:11,color:"#777",marginTop:6,textTransform:"uppercase",letterSpacing:"0.06em"}}>Dias en objetivo</div>
+        </div>
+        <div style={{background:"#1A1A1A",border:"1px solid #2E2E2E",borderRadius:14,padding:16}}>
+          <div style={{fontFamily:"'Space Mono',monospace",fontSize:28,fontWeight:700,color:"#C8FF00",lineHeight:1}}>{avgProt}g</div>
+          <div style={{fontSize:11,color:"#777",marginTop:6,textTransform:"uppercase",letterSpacing:"0.06em"}}>Prot media</div>
+        </div>
+      </div>
+
+      <div style={{background:"#1A1A1A",border:"1px solid #2E2E2E",borderRadius:16,margin:"0 16px 12px",padding:"16px 16px 8px"}}>
+        <div style={{fontSize:11,color:"#777",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:12}}>Calorias por dia</div>
+        <div className="week-bar-row">
+          {last7.map((d,i)=>{
+            const h = maxKcal>0?(d.kcal/maxKcal*100):0;
+            const cls = "week-bar"+(d.kcal>=goals.kcal*0.9&&d.kcal<=goals.kcal*1.1?" hit":d.kcal>goals.kcal*1.1?" over":"");
+            return (
+              <div key={i} className="week-bar-col">
+                <div style={{flex:1,display:"flex",alignItems:"flex-end",width:"100%"}}>
+                  <div className={cls} style={{height:h+"%"}}/>
+                </div>
+                <div className="week-day-lbl">{d.day}</div>
+              </div>
+            );
+          })}
+        </div>
+        <div style={{display:"flex",gap:12,padding:"8px 0",fontSize:11,color:"#777"}}>
+          <span><span style={{color:"#FF6B35"}}>■</span> Objetivo</span>
+          <span><span style={{color:"#FF4444"}}>■</span> Pasado</span>
+          <span><span style={{color:"#2E2E2E"}}>■</span> Sin datos</span>
+        </div>
+      </div>
+
+      <div style={{background:"#1A1A1A",border:"1px solid #2E2E2E",borderRadius:16,margin:"0 16px 12px",padding:16}}>
+        <div style={{fontSize:11,color:"#777",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:12}}>Media semanal</div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+          <span style={{fontSize:14}}>Calorias</span>
+          <span style={{fontFamily:"'Space Mono',monospace",fontSize:16,fontWeight:700,color:avgKcal>goals.kcal?"#FF4444":"#FF6B35"}}>{avgKcal} kcal</span>
+        </div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <span style={{fontSize:14}}>Proteina</span>
+          <span style={{fontFamily:"'Space Mono',monospace",fontSize:16,fontWeight:700,color:avgProt>=goals.prot*0.9?"#C8FF00":"#777"}}>{avgProt}g</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SettingsScreen({goals, onGoals}) {
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState({kcal:goals.kcal,prot:goals.prot,weight:goals.weight||""});
+  const save = () => {
+    const peso = parseFloat(form.weight);
+    const kcal = parseInt(form.kcal)||2500;
+    const prot = !isNaN(peso) ? Math.round(peso*1.8) : parseInt(form.prot)||150;
+    onGoals({...goals, kcal, prot, weight:form.weight});
+    setEditing(false);
+  };
+  return (
+    <div>
+      <div className="header">
+        <div className="header-title">Objetivos</div>
+        <div className="header-sub">Tu configuracion</div>
+      </div>
+      <div className="settings-card">
+        <div className="settings-row" style={{borderTop:"none"}}>
+          <div><div className="settings-label">Calorias diarias</div><div className="settings-sub">Para ganar musculo</div></div>
+          <div className="settings-val">{goals.kcal}</div>
+        </div>
+        <div className="settings-row">
+          <div><div className="settings-label">Proteina diaria</div><div className="settings-sub">Minimo para crecer</div></div>
+          <div className="settings-val" style={{color:"#C8FF00"}}>{goals.prot}g</div>
+        </div>
+        {goals.weight && <div className="settings-row">
+          <div><div className="settings-label">Tu peso</div><div className="settings-sub">Calculado en base a esto</div></div>
+          <div className="settings-val" style={{color:"#777"}}>{goals.weight}kg</div>
+        </div>}
+      </div>
+
+      <div style={{padding:"0 16px"}}>
+        <button className="btn btn-primary" style={{background:"#1A1A1A",color:"#FF6B35",border:"1px solid #FF6B35"}} onClick={()=>setEditing(true)}>Editar objetivos</button>
+      </div>
+
+      <div style={{margin:"20px 16px 0",padding:16,background:"#1A1A1A",border:"1px solid #2E2E2E",borderRadius:14}}>
+        <div style={{fontSize:11,color:"#C8FF00",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:8}}>Consejo</div>
+        <div style={{fontSize:13,color:"#777",lineHeight:1.6}}>
+          Cuando sepas tu peso, metelo aqui y recalculo la proteina automaticamente. La regla es <span style={{color:"#F5F5F5",fontWeight:600}}>1.8g por kg de peso</span>.
+          Si pesas 75kg son 135g de proteina al dia minimo.
+        </div>
+      </div>
+
+      {editing && (
+        <div className="overlay" onClick={()=>setEditing(false)}>
+          <div className="modal" onClick={e=>e.stopPropagation()}>
+            <div className="modal-handle"/>
+            <div className="modal-title">Editar objetivos</div>
+            <div style={{fontSize:12,color:"#777",marginBottom:6}}>Tu peso (kg) — opcional</div>
+            <input className="input-field" placeholder="ej: 75" type="number" inputMode="decimal" value={form.weight} onChange={e=>{ const p=parseFloat(e.target.value); setForm({...form,weight:e.target.value,prot:!isNaN(p)?Math.round(p*1.8):form.prot}); }} autoFocus/>
+            <div style={{fontSize:12,color:"#777",marginBottom:6}}>Calorias diarias</div>
+            <input className="input-field" placeholder="2500" type="number" inputMode="numeric" value={form.kcal} onChange={e=>setForm({...form,kcal:e.target.value})}/>
+            <div style={{fontSize:12,color:"#777",marginBottom:6}}>Proteina diaria (g)</div>
+            <input className="input-field" placeholder="150" type="number" inputMode="numeric" value={form.prot} onChange={e=>setForm({...form,prot:e.target.value})}/>
+            <button className="btn btn-primary" onClick={save}>Guardar</button>
+            <button className="btn btn-ghost" onClick={()=>setEditing(false)}>Cancelar</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+const SHOPPING_LIST = [
+  { cat: "Proteinas", items: [
+    {id:"s1", name:"Pechugas de pollo", qty:"1kg"},
+    {id:"s2", name:"Carne picada", qty:"500g"},
+    {id:"s3", name:"Latas de atun", qty:"6 latas"},
+    {id:"s4", name:"Huevos", qty:"12 unidades"},
+    {id:"s5", name:"Jamon serrano", qty:"200g"},
+    {id:"s6", name:"Yogur proteico", qty:"4 unidades"},
+    {id:"s7", name:"Queso fresco", qty:"1 tarrina"},
+  ]},
+  { cat: "Carbohidratos", items: [
+    {id:"s8", name:"Arroz", qty:"1kg"},
+    {id:"s9", name:"Pasta", qty:"500g"},
+    {id:"s10", name:"Pan de molde integral", qty:"1 bolsa"},
+    {id:"s11", name:"Avena", qty:"500g"},
+    {id:"s12", name:"Patatas", qty:"1kg"},
+  ]},
+  { cat: "Verduras y fruta", items: [
+    {id:"s13", name:"Platanos", qty:"6 unidades"},
+    {id:"s14", name:"Tomates", qty:"500g"},
+    {id:"s15", name:"Lechuga", qty:"1 bolsa"},
+    {id:"s16", name:"Brocoli", qty:"1 unidad"},
+    {id:"s17", name:"Pimiento rojo", qty:"2 unidades"},
+  ]},
+  { cat: "Grasas y extras", items: [
+    {id:"s18", name:"Aceite de oliva", qty:"1 botella"},
+    {id:"s19", name:"Mantequilla de cacahuete", qty:"1 bote"},
+    {id:"s20", name:"Leche", qty:"1L"},
+    {id:"s21", name:"Cacahuetes tostados", qty:"200g"},
+  ]},
+];
+
+const MEAL_PLAN = [
+  { day:"Lunes", kcal:2480, meals:[
+    {slot:"Desayuno", name:"Avena con leche + 2 huevos revueltos", portions:"80g avena · 250ml leche · 2 huevos", kcal:480, prot:28},
+    {slot:"Comida", name:"Arroz con pechuga a la plancha + ensalada", portions:"150g arroz (en crudo) · 150g pechuga · ensalada libre", kcal:620, prot:42},
+    {slot:"Merienda", name:"Yogur proteico + platano", portions:"1 yogur (200g) · 1 platano mediano", kcal:190, prot:16},
+    {slot:"Cena", name:"Pasta con carne picada + tomate", portions:"120g pasta (en crudo) · 150g carne picada · tomate libre", kcal:580, prot:38},
+    {slot:"Extra", name:"Jamon serrano + pan de molde", portions:"60g jamon (4 lonchas) · 2 rebanadas pan", kcal:280, prot:18},
+  ]},
+  { day:"Martes", kcal:2510, meals:[
+    {slot:"Desayuno", name:"Tostadas integrales + queso fresco + cafe", portions:"2 tostadas · 100g queso fresco · cafe solo", kcal:380, prot:18},
+    {slot:"Comida", name:"Patatas con carne picada salteada", portions:"300g patatas · 200g carne picada · aceite 1 cda", kcal:650, prot:35},
+    {slot:"Merienda", name:"Lata de atun + pan", portions:"1 lata atun (80g) · 2 rebanadas pan molde", kcal:280, prot:28},
+    {slot:"Cena", name:"Pechuga a la plancha + brocoli + arroz", portions:"150g pechuga · 200g brocoli · 100g arroz crudo", kcal:520, prot:40},
+    {slot:"Extra", name:"Mantequilla de cacahuete + pan molde", portions:"30g mantequilla cacahuete · 2 rebanadas", kcal:320, prot:12},
+  ]},
+  { day:"Miercoles", kcal:2460, meals:[
+    {slot:"Desayuno", name:"2 huevos fritos + jamon + tostada", portions:"2 huevos · 40g jamon · 2 tostadas · aceite 1 cda", kcal:480, prot:30},
+    {slot:"Comida", name:"Arroz con atun + pimiento salteado", portions:"150g arroz crudo · 2 latas atun · 1 pimiento", kcal:560, prot:38},
+    {slot:"Merienda", name:"Yogur proteico + cacahuetes", portions:"1 yogur (200g) · 30g cacahuetes", kcal:240, prot:18},
+    {slot:"Cena", name:"Pechuga empanada ligera + ensalada", portions:"150g pechuga · pan rallado fino · ensalada libre", kcal:520, prot:36},
+    {slot:"Extra", name:"Platano + leche", portions:"1 platano · 250ml leche", kcal:200, prot:8},
+  ]},
+  { day:"Jueves", kcal:2490, meals:[
+    {slot:"Desayuno", name:"Avena con leche + platano", portions:"80g avena · 250ml leche · 1 platano", kcal:420, prot:14},
+    {slot:"Comida", name:"Pasta con pollo y tomate", portions:"120g pasta cruda · 150g pollo · tomate triturado libre", kcal:620, prot:40},
+    {slot:"Merienda", name:"Lata de atun + tostada", portions:"1 lata atun (80g) · 2 tostadas", kcal:240, prot:26},
+    {slot:"Cena", name:"Carne picada con patatas al horno", portions:"200g carne picada · 250g patatas · especias", kcal:580, prot:35},
+    {slot:"Extra", name:"Queso fresco + jamon", portions:"100g queso fresco · 40g jamon (3 lonchas)", kcal:220, prot:22},
+  ]},
+  { day:"Viernes", kcal:2520, meals:[
+    {slot:"Desayuno", name:"Huevos revueltos + tostada + cafe", portions:"3 huevos · 2 tostadas · cafe", kcal:440, prot:24},
+    {slot:"Comida", name:"Arroz con carne picada y brocoli", portions:"150g arroz crudo · 150g carne picada · 150g brocoli", kcal:640, prot:42},
+    {slot:"Merienda", name:"Yogur proteico + cacahuetes", portions:"1 yogur (200g) · 30g cacahuetes", kcal:240, prot:18},
+    {slot:"Cena", name:"Pechuga a la plancha + patatas al horno", portions:"150g pechuga · 250g patatas · aceite 1 cda", kcal:560, prot:38},
+    {slot:"Extra", name:"Pan molde con mantequilla cacahuete", portions:"2 rebanadas · 30g mantequilla cacahuete", kcal:280, prot:10},
+  ]},
+  { day:"Sabado", kcal:2540, meals:[
+    {slot:"Desayuno", name:"Tostadas con aceite + jamon + huevo frito", portions:"2 tostadas · aceite 1 cda · 60g jamon · 1 huevo", kcal:520, prot:28},
+    {slot:"Comida", name:"Pollo al horno + arroz + ensalada", portions:"200g pollo · 150g arroz crudo · ensalada libre", kcal:660, prot:44},
+    {slot:"Merienda", name:"Platano + leche con avena", portions:"1 platano · 250ml leche · 40g avena", kcal:280, prot:12},
+    {slot:"Cena", name:"Pasta con atun y tomate", portions:"120g pasta cruda · 2 latas atun · tomate libre", kcal:520, prot:32},
+    {slot:"Extra", name:"Yogur proteico", portions:"1 yogur (200g)", kcal:100, prot:15},
+  ]},
+  { day:"Domingo", kcal:2460, meals:[
+    {slot:"Desayuno", name:"Huevos fritos + pan + zumo naranja", portions:"2 huevos · 2 rebanadas pan · 1 vaso zumo", kcal:480, prot:22},
+    {slot:"Comida", name:"Arroz con pollo y pimiento", portions:"150g arroz crudo · 150g pollo · 1 pimiento", kcal:640, prot:40},
+    {slot:"Merienda", name:"Queso fresco + jamon serrano", portions:"100g queso fresco · 60g jamon", kcal:220, prot:22},
+    {slot:"Cena", name:"Carne picada con pasta y verdura", portions:"120g pasta cruda · 150g carne picada · verdura libre", kcal:580, prot:36},
+    {slot:"Extra", name:"Cacahuetes + platano", portions:"30g cacahuetes · 1 platano", kcal:200, prot:8},
+  ]},
+];
+
+function DayPlanCard({plan, isToday}) {
+  const [open, setOpen] = useState(isToday);
+  return (
+    <div className="day-plan-card" style={isToday?{borderColor:"rgba(255,107,53,0.4)"}:{}}>
+      <div className="day-plan-header" onClick={()=>setOpen(!open)}>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          {isToday&&<span style={{width:6,height:6,borderRadius:"50%",background:"#FF6B35",display:"inline-block"}}/>}
+          <span className="day-plan-name" style={isToday?{color:"#FF6B35"}:{}}>{plan.day}</span>
+          {isToday&&<span style={{fontSize:10,color:"#FF6B35",background:"rgba(255,107,53,0.1)",padding:"2px 7px",borderRadius:10,border:"1px solid rgba(255,107,53,0.2)"}}>HOY</span>}
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <span className="day-plan-kcal">~{plan.kcal} kcal</span>
+          <span style={{color:"#555",fontSize:14}}>{open?"▲":"▼"}</span>
+        </div>
+      </div>
+      {open && plan.meals.map((m,i)=>(
+        <div key={i} className="meal-slot">
+          <div className="meal-slot-label">{m.slot}</div>
+          <div className="meal-slot-name">{m.name}</div>
+          <div className="meal-slot-macro">{m.kcal} kcal · {m.prot}g prot</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ShoppingScreen({checked, onCheck, onReset}) {
+  const [view, setView] = useState("compra");
+  const today = ["Domingo","Lunes","Martes","Miercoles","Jueves","Viernes","Sabado"][new Date().getDay()];
+  const todayIdx = MEAL_PLAN.findIndex(p=>p.day===today);
+  const ordered = todayIdx>=0 ? [...MEAL_PLAN.slice(todayIdx),...MEAL_PLAN.slice(0,todayIdx)] : MEAL_PLAN;
+  const totalChecked = SHOPPING_LIST.flatMap(c=>c.items).filter(i=>checked[i.id]).length;
+  const totalItems = SHOPPING_LIST.flatMap(c=>c.items).length;
+  return (
+    <div>
+      <div className="header">
+        <div style={{display:"flex",alignItems:"flex-end",justifyContent:"space-between"}}>
+          <div>
+            <div className="header-title">{view==="compra"?"Compra semanal":"Plan de comidas"}</div>
+            <div className="header-sub">{view==="compra"?`${totalChecked}/${totalItems} productos`:"7 dias · ~2500 kcal/dia"}</div>
+          </div>
+          {view==="compra"&&totalChecked>0&&<button onClick={onReset} style={{fontSize:11,color:"#777",background:"#1A1A1A",border:"1px solid #2E2E2E",borderRadius:8,padding:"5px 10px",cursor:"pointer"}}>Limpiar</button>}
+        </div>
+      </div>
+      <div style={{display:"flex",gap:8,padding:"0 16px 16px"}}>
+        <button onClick={()=>setView("compra")} style={{flex:1,padding:"10px",borderRadius:12,border:"1px solid",borderColor:view==="compra"?"#FF6B35":"#2E2E2E",background:view==="compra"?"rgba(255,107,53,0.1)":"#1A1A1A",color:view==="compra"?"#FF6B35":"#777",fontFamily:"Space Grotesk",fontWeight:600,fontSize:13,cursor:"pointer"}}>Lista compra</button>
+        <button onClick={()=>setView("plan")} style={{flex:1,padding:"10px",borderRadius:12,border:"1px solid",borderColor:view==="plan"?"#FF6B35":"#2E2E2E",background:view==="plan"?"rgba(255,107,53,0.1)":"#1A1A1A",color:view==="plan"?"#FF6B35":"#777",fontFamily:"Space Grotesk",fontWeight:600,fontSize:13,cursor:"pointer"}}>Plan semanal</button>
+      </div>
+
+      {view==="compra"&&SHOPPING_LIST.map(cat=>(
+        <div key={cat.cat} className="shop-cat">
+          <div className="shop-cat-title">{cat.cat}</div>
+          {cat.items.map(item=>(
+            <div key={item.id} className={"shop-item"+(checked[item.id]?" checked":"")} onClick={()=>onCheck(item.id)}>
+              <div className={"shop-check"+(checked[item.id]?" done":"")}>{checked[item.id]?"✓":""}</div>
+              <span className="shop-name" style={checked[item.id]?{textDecoration:"line-through",color:"#555"}:{}}>{item.name}</span>
+              <span className="shop-qty">{item.qty}</span>
+            </div>
+          ))}
+        </div>
+      ))}
+
+      {view==="plan"&&<>
+        <div style={{margin:"0 16px 12px",padding:"12px 14px",background:"rgba(255,107,53,0.06)",border:"1px solid rgba(255,107,53,0.15)",borderRadius:12}}>
+          <div style={{fontSize:11,color:"#FF6B35",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:4}}>Basado en tu objetivo</div>
+          <div style={{fontSize:12,color:"#777"}}>~2500 kcal · 150g proteina al dia. Ajustado para ganar musculo sin complicarte la vida.</div>
+        </div>
+        {ordered.map((p,i)=>(
+          <DayPlanCard key={p.day} plan={p} isToday={p.day===today}/>
+        ))}
+      </>}
+      <div style={{height:16}}/>
+    </div>
+  );
+}
+
+function App() {
+  const [tab, setTab] = useState("hoy");
+  const [log, setLog] = useLS("ft_log", {});
+  const [goals, setGoals] = useLS("ft_goals", {kcal:2500,prot:150,weight:""});
+  const [customFoods, setCustomFoods] = useLS("ft_foods", []);
+  const [shopChecked, setShopChecked] = useLS("ft_shop", {});
+  const toggleCheck = id => setShopChecked({...shopChecked,[id]:!shopChecked[id]});
+  const resetShop = () => setShopChecked({});
+  const [mealTicks, setMealTicks] = useLS("ft_ticks", {});
+
+  const addEntry = (date, entry) => {
+    const id = "_"+Date.now();
+    const prev = log[date]||[];
+    setLog({...log,[date]:[...prev,{...entry,_id:id}]});
+  };
+  const deleteEntry = (date, id) => {
+    setLog({...log,[date]:(log[date]||[]).filter(e=>e._id!==id)});
+  };
+
+  return (
+    <div className="app">
+      <div className="screen">
+        {tab==="hoy"&&<TodayScreen log={log} onAdd={addEntry} onDelete={deleteEntry} goals={goals} foods={customFoods} mealTicks={mealTicks} onMealTick={setMealTicks}/>}
+        {tab==="stats"&&<StatsScreen log={log} goals={goals}/>}
+        {tab==="config"&&<SettingsScreen goals={goals} onGoals={setGoals}/> }
+        {tab==="shop"&&<ShoppingScreen checked={shopChecked} onCheck={toggleCheck} onReset={resetShop}/>}
+      </div>
+      <nav className="nav">
+        {[
+          {id:"hoy",label:"Hoy",I:IcoHoy},
+          {id:"shop",label:"Compra",I:IcoShop},
+          {id:"stats",label:"Progreso",I:IcoStats},
+          {id:"config",label:"Objetivos",I:IcoSettings},
+        ].map(({id,label,I})=>(
+          <button key={id} className={"nav-btn"+(tab===id?" active":"")} onClick={()=>setTab(id)}><I/>{label}</button>
+        ))}
+      </nav>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
